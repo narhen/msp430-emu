@@ -4,3 +4,4 @@ a.out
 dummy.c
 src/*.o
 lib/*.o
+msp430-emu
