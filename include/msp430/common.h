@@ -64,6 +64,7 @@ extern u8 memory[0x10000 + 32];
 extern u16 *registers;
 
 extern double curr_time(void);
+extern void print_registers(void);
 
 /* increases register by a word (2 bytes) */
 static inline u32 inc_reg(int reg)

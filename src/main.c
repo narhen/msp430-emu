@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <msp430/common.h>
+#include <elf_loader.h>
 
 static void emulate(void)
 {
@@ -72,9 +73,21 @@ static void init(int argc, char **argv)
 
 int main(int argc, char *argv[])
 {
+    /*
     init(argc, argv);
+    */
 
-    emulate();
+    if (!load_elf(argv[1])) {
+        fprintf(stderr, "Failed to load elf file\n");
+        return 1;
+    }
+
+    memset(registers, 0, sizeof(registers));
+    registers[PC] = read_word(0xfffe);
+
+    //emulate();
+
+    print_registers();
 
     return 0;
 }
