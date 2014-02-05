@@ -1,4 +1,4 @@
-#include "common.h"
+#include <msp430/common.h>
 
 static int jne_nz(void)
 {
@@ -20,7 +20,7 @@ static int jc(void)
     return read_bits(registers[SR], SR_C);
 }
 
-static int jn(void)
+static int _jn(void)
 {
     return !read_bits(registers[SR], SR_N);
 }
@@ -45,7 +45,7 @@ static int (*call_table[])(void) = {
     jeq_z,
     jnc,
     jc,
-    jn,
+    _jn,
     jge,
     jl,
     jmp,

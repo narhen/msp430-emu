@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
+#include <msp430/common.h>
 
 static void emulate(void)
 {
@@ -45,8 +45,8 @@ static void init(int argc, char **argv)
         exit(1);
     }
 
-    while (img_siz != sizeof(memory)) {
-        ret = fread(memory + img_siz, 1, sizeof(memory) - img_siz, fp);
+    while (img_siz != 0x10000) {
+        ret = fread(memory + img_siz, 1, 0x10000 - img_siz, fp);
 
         if (!ret && feof(fp))
             break;
@@ -58,8 +58,8 @@ static void init(int argc, char **argv)
         img_siz += ret;
     }
 
-    if (img_siz != sizeof(memory)) {
-        fprintf(stderr, "The image size must be %d bytes\n", sizeof(memory));
+    if (img_siz != 0x10000) {
+        fprintf(stderr, "The image size must be %d bytes\n", 0x10000);
         fclose(fp);
         exit(1);
     }
@@ -75,4 +75,6 @@ int main(int argc, char *argv[])
     init(argc, argv);
 
     emulate();
+
+    return 0;
 }

@@ -2,6 +2,7 @@
 #define __COMMON_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #define u8 uint8_t
 #define s8 int8_t
@@ -14,6 +15,10 @@
 
 #define u64 uint64_t
 #define s64 int64_t
+
+#include <msp430/jumps.h>
+#include <msp430/single_operand.h>
+#include <msp430/double_operand.h>
 
 #define PC 0
 #define SP 1
@@ -55,24 +60,20 @@
 
 #define _packed __attribute__((packed))
 
-extern u8 memory[0x10000];
-extern u16 registers[16];
+extern u8 memory[0x10000 + 32];
+extern u16 *registers;
 
-/* in common.c */
 extern double curr_time(void);
 
-/* in jumps.c */
-extern void handle_jumps(u16 instruction);
-
 /* increases register by a word (2 bytes) */
-inline u16 inc_reg(int reg)
+static inline u32 inc_reg(int reg)
 {
     registers[reg] += 2;
 
     return registers[reg];
 }
 
-inline u16 dec_reg(int reg)
+static inline u32 dec_reg(int reg)
 {
     registers[reg] -= 2;
 

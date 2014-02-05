@@ -1,8 +1,8 @@
-#include <time.h>
-#include "common.h"
+#include <sys/time.h>
+#include <msp430/common.h>
 
-u8 memory[0x10000];
-u16 registers[16];
+u8 memory[0x10000 + 32];
+u16 *registers = (u16 *)&memory[0x10000];
 
 double curr_time(void)
 {

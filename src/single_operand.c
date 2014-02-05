@@ -1,22 +1,23 @@
-#include "common.h"
+#include <msp430/common.h>
 
 static void illegal_instr(u16 instruction)
 {
     /* TODO not sure how to deal with illegal instructions yet */
 }
 
-u16 get_addr(u8 instr, u16 *write_back)
+u32 get_addr(u8 instr, u16 *write_back)
 {
-    u16 addr = 0;
+    u32 addr = 0;
+    u8 reg = read_bits(instr, 0xf);
     u8 addr_mode = read_bits(0x30, instr) >> 4;
 
     switch (addr_mode) {
         case 0:
             /* register */
-            registers[reg]
+            addr = 0x10000 + reg;
             break;
         case 1:
-            addr = inc_reg[PC];
+            addr = inc_reg(PC);
             if (reg != SR) /* absolute mode */
                 addr += registers[reg];
             break;
@@ -37,8 +38,9 @@ u16 get_addr(u8 instr, u16 *write_back)
 
 static void rrc(u16 instruction)
 {
-    u16 addr, val;
-    u8 tmpc, wb;
+    u32 addr;
+    u16 val, wb;
+    u8 tmpc;
 
     addr = get_addr(instruction, &wb);
     val = read_word(addr);
@@ -47,7 +49,7 @@ static void rrc(u16 instruction)
     val = (val >> 1) | (read_bits(registers[SR], SR_C) << 15);
 
     if (wb)
-        write_word(val);
+        write_word(addr, val);
 
     /* set bits in SR */
     registers[SR] = (registers[SR] & ~1) | tmpc;
@@ -56,16 +58,17 @@ static void rrc(u16 instruction)
     if (val)
         clr_bits(registers[SR], SR_Z|SR_N);
     else
-        set_bits(registers[SR], SR_Z)
+        set_bits(registers[SR], SR_Z);
 
     if (read_bits(val, 0x8000))
-        set_bits(registers[SR], SR_N)
+        set_bits(registers[SR], SR_N);
 }
 
 static void rrc_b(u16 instruction)
 {
-    u16 addr;
-    u8 tmpc, val, wb;
+    u32 addr;
+    u8 tmpc, val;
+    u16 wb;
 
     addr = get_addr(instruction, &wb);
     val = read_byte(addr);
@@ -74,7 +77,7 @@ static void rrc_b(u16 instruction)
     val = (val >> 1) | (read_bits(registers[SR], SR_C) << 7);
 
     if (wb)
-        write_byte(val);
+        write_byte(addr, val);
 
     /* set bits in SR */
     registers[SR] = (registers[SR] & ~1) | tmpc;
@@ -83,16 +86,16 @@ static void rrc_b(u16 instruction)
     if (val)
         clr_bits(registers[SR], SR_Z|SR_N);
     else
-        set_bits(registers[SR], SR_Z)
+        set_bits(registers[SR], SR_Z);
 
     if (read_bits(val, 0x80))
-        set_bits(registers[SR], SR_N)
+        set_bits(registers[SR], SR_N);
 }
 
 static void swpb(u16 instruction)
 {
-    u16 addr, val;
-    u8 wb;
+    u32 addr;
+    u16 val, wb;
 
     addr = get_addr(instruction, &wb);
 
@@ -105,7 +108,8 @@ static void swpb(u16 instruction)
 
 static void rra(u16 instruction)
 {
-    u16 addr, msb, val, wb;
+    u32 addr;
+    u16 msb, val, wb;
     
     addr = get_addr(instruction, &wb);
     val = read_word(addr);
@@ -116,20 +120,21 @@ static void rra(u16 instruction)
     if (wb)
         write_word(addr, val);
 
-    clr_bit(registers[SR], SR_V);
+    clr_bits(registers[SR], SR_V);
     if (val)
         clr_bits(registers[SR], SR_Z|SR_N);
     else
-        set_bits(registers[SR], SR_Z)
+        set_bits(registers[SR], SR_Z);
 
     if (read_bits(val, 0x8000))
-        set_bits(registers[SR], SR_N)
+        set_bits(registers[SR], SR_N);
 }
 
 static void rra_b(u16 instruction)
 {
-    u16 addr;
-    u8 val, msb, wb;
+    u32 addr;
+    u16 wb;
+    u8 val, msb;
     
     addr = get_addr(instruction, &wb);
     val = read_byte(addr);
@@ -140,20 +145,21 @@ static void rra_b(u16 instruction)
     if (wb)
         write_word(addr, val);
 
-    clr_bit(registers[SR], SR_V);
+    clr_bits(registers[SR], SR_V);
     if (val)
         clr_bits(registers[SR], SR_Z|SR_N);
     else
-        set_bits(registers[SR], SR_Z)
+        set_bits(registers[SR], SR_Z);
 
     if (read_bits(val, 0x80))
-        set_bits(registers[SR], SR_N)
+        set_bits(registers[SR], SR_N);
 }
 
 static void sxt(u16 instruction)
 {
-    u16 addr, wb;
-    u8 val, msb;
+    u32 addr;
+    u16 wb;
+    u8 val;
     
     addr = get_addr(instruction, &wb);
     val = read_byte(addr);
@@ -172,14 +178,15 @@ static void sxt(u16 instruction)
         if (!read_bits(val, 0x8000))
             clr_bits(registers[SR], SR_N);
     } else {
-        set_bits(registers[SR], SR_Z)
+        set_bits(registers[SR], SR_Z);
         clr_bits(registers[SR], SR_C);
     }
 }
 
 static void push(u16 instruction)
 {
-    u16 addr, val, wb;
+    u32 addr;
+    u16 val, wb;
     
     addr = get_addr(instruction, &wb);
     val = read_word(addr);
@@ -189,7 +196,8 @@ static void push(u16 instruction)
 
 static void push_b(u16 instruction)
 {
-    u16 addr, val, wb;
+    u32 addr;
+    u16 val, wb;
     
     addr = get_addr(instruction, &wb);
     val = (u16)read_byte(addr);
@@ -199,7 +207,8 @@ static void push_b(u16 instruction)
 
 static void call(u16 instruction)
 {
-    u16 addr, val, wb;
+    u32 addr;
+    u16 val, wb;
     
     addr = get_addr(instruction, &wb);
     val = read_word(addr);
@@ -232,7 +241,7 @@ static void (*call_table[])(u16) = {
     reti,
 };
 
-inline void opc_components(u16 instruction, u16 *opcode, u8 &bw, u8 *ad, u8 *dsreg)
+static inline void opc_components(u16 instruction, u16 *opcode, u8 *bw, u8 *ad, u8 *dsreg)
 {
     *opcode = read_bits(instruction, 0x0f80) >> 7;
     *bw = read_bits(instruction, 0x40) >> 6;
@@ -242,12 +251,13 @@ inline void opc_components(u16 instruction, u16 *opcode, u8 &bw, u8 *ad, u8 *dsr
 
 void handle_single(u16 instruction)
 {
-    u16 opcode;
+    u16 opcode, type;
     u8 bw, ad, dsreg;
 
     opc_components(instruction, &opcode, &bw, &ad, &dsreg);
 
-    if ((opcode << 1) | bw > 12) {
+    type = (opcode << 1) | bw;
+    if (type > 12) {
         /* TODO not sure how to deal with illegal instructions yet */
         illegal_instr(instruction);
         return;
