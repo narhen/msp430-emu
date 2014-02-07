@@ -3,5 +3,4 @@
 
 extern void handle_double(u16 instruction);
 
-
 #endif

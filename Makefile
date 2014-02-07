@@ -5,6 +5,11 @@ msp430-emu:
 	$(MAKE) -C src
 	@mv src/msp430-emu .
 
+debug:
+	$(MAKE) EXTRA_CFLAGS="-D DEBUG" -C lib
+	$(MAKE) EXTRA_CFLAGS="-D DEBUG" -C src
+	@mv src/msp430-emu .
+
 clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C lib clean

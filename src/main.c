@@ -12,6 +12,11 @@ static void emulate(void)
     while (1) {
         curr_instr = read_word(registers[PC]);
 
+#ifdef DEBUG
+        putchar('\n');
+        print_registers();
+#endif
+
         switch (read_bits(curr_instr, 0xf000)) {
             case 0x1000:
                 /* single operand */
@@ -26,6 +31,15 @@ static void emulate(void)
                 /* double operand */
                 handle_double(curr_instr);
         }
+        inc_reg(PC);
+
+        if (read_bits(registers[SR], SR_CPU_OFF))
+            break;
+
+#ifdef DEBUG
+        //if (registers[PC] >= 0xc040)
+        getchar();
+#endif
     }
 }
 
@@ -73,20 +87,18 @@ static void init(int argc, char **argv)
 
 int main(int argc, char *argv[])
 {
-    /*
-    init(argc, argv);
-    */
-
+    memset(memory, 0, sizeof(memory));
     if (!load_elf(argv[1])) {
         fprintf(stderr, "Failed to load elf file\n");
         return 1;
     }
 
-    memset(registers, 0, sizeof(registers));
     registers[PC] = read_word(0xfffe);
 
-    //emulate();
+    emulate();
 
+    printf("\n-----------------------\n");
+    printf("CPUOFF flag set. Switching off CPU\n");
     print_registers();
 
     return 0;

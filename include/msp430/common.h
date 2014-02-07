@@ -51,7 +51,7 @@
 
 #define read_bits(val, mask) ((val) & (mask))
 #define set_bits(var, mask) ((var) |= (mask))
-#define clr_bits(var, mask) ((val) &= (~(mask)))
+#define clr_bits(var, mask) ((var) &= (~(mask)))
 /* set bit number i in var */
 #define set_bit(var, i) (set_bits(var, (1 << i))
 #define clr_bit(var, i) (clr_bits(var, (1 << i))

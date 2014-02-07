@@ -47,11 +47,13 @@ int load_elf(char *file)
         if (ptr->sh_type != SHT_PROGBITS)
             continue;
 
-        if (!strcmp(strtab + ptr->sh_name, ".debug_"))
+        if (!strncmp(strtab + ptr->sh_name, ".debug_", 7))
             continue;
 
         fseek(fp, ptr->sh_offset, SEEK_SET);
-        fread(memory + ptr->sh_addr, ptr->sh_addr, 1, fp);
+        fread(memory + ptr->sh_addr, ptr->sh_size, 1, fp);
+
+        printf("loading %s to 0x%x (0x%x)\n", strtab + ptr->sh_name, ptr->sh_addr, ptr->sh_size);
     }
 
     free(sections);;
