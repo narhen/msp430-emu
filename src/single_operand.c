@@ -4,7 +4,8 @@
 
 static void illegal_instr(u16 instruction)
 {
-    /* TODO not sure how to deal with illegal instructions yet */
+    printf("ILLEGAL INSTRUCTION!\n");
+    set_bits(registers[SR], SR_CPU_OFF);
 }
 
 static u32 get_addr(u8 instr, u16 *write_back)
@@ -19,22 +20,28 @@ static u32 get_addr(u8 instr, u16 *write_back)
             addr = 0x10000 + (reg << 1);
             break;
         case 1:
-            addr = inc_reg(PC);
+            addr = registers[PC];
+            inc_reg(PC);
             if (reg != SR) /* absolute mode */
                 addr += registers[reg];
+            addr &= 0xffff;
             break;
         case 2:
             addr = registers[reg];
             break;
         case 3:
-            if (reg != PC)
-                addr = registers[reg];
-            else {
-                addr = inc_reg(PC);
+            if (reg != PC) {
+                if (reg == CG)
+                    registers[CG] = 0xffff;
+                else if (reg == SR)
+                    registers[CG] = 8;
+                addr = 0x10000 + (registers[reg] << 1);
+                inc_reg(reg);
+            } else {
+                addr = registers[PC];
+                inc_reg(PC);
                 *write_back = 0;
             }
-            inc_reg(reg);
-            break;
     }
 
     return addr;
@@ -45,7 +52,6 @@ static void rrc(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 val, wb;
     u8 tmpc;
@@ -77,7 +83,6 @@ static void rrc_b(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u8 tmpc, val;
     u16 wb;
@@ -109,7 +114,6 @@ static void swpb(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 val, wb;
 
@@ -127,7 +131,6 @@ static void rra(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 msb, val, wb;
     
@@ -155,7 +158,6 @@ static void rra_b(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 wb;
     u8 val, msb;
@@ -184,7 +186,6 @@ static void sxt(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 wb;
     u8 val;
@@ -193,11 +194,13 @@ static void sxt(u16 instruction)
     val = read_byte(addr);
 
     if (read_bits(val, 0x80)) {
-        val |= 0xff;
+        val |= 0xff00;
         set_bits(registers[SR], SR_N); /* set Negative bit if negative */
-        if (wb)
-            write_word(addr, val);
-    }
+    } else
+        val &= 0xff;
+
+    if (wb)
+        write_word(addr, val);
 
     clr_bits(registers[SR], SR_V);
     if (val) {
@@ -216,14 +219,13 @@ static void push(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 val, wb;
     
     addr = get_addr(instruction, &wb);
     val = read_word(addr);
 
-    write_word(dec_reg(registers[SP]), val);
+    write_word(dec_reg(SP), val);
 }
 
 static void push_b(u16 instruction)
@@ -231,7 +233,6 @@ static void push_b(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 val, wb;
     
@@ -246,14 +247,13 @@ static void call(u16 instruction)
 #ifdef DEBUG
     printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     u32 addr;
     u16 val, wb;
     
     addr = get_addr(instruction, &wb);
     val = read_word(addr);
 
-    write_word(dec_reg(registers[SP]), registers[PC]);
+    write_word(dec_reg(SP), registers[PC]);
     registers[PC] = val;
 }
 

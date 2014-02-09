@@ -14,14 +14,10 @@ static inline void opc_components(u16 instruction, u16 *opcode, u16 *sreg,
     *dreg = read_bits(instruction, 0xf);
 }
 
-static u32 get_addr(u16 addr_mode, u16 reg, u16 *write_back)
+static u32 get_addr(u16 addr_mode, u16 reg, u16 *write_back, u16 *val)
 {
     u32 addr = 0;
     *write_back = 1;
-
-#ifdef DEBUG
-    printf("addr_mode: %d, reg: %d\n", addr_mode, reg);
-#endif
 
     switch (addr_mode) {
         case 0:
@@ -29,22 +25,31 @@ static u32 get_addr(u16 addr_mode, u16 reg, u16 *write_back)
             addr = 0x10000 + (reg << 1);
             if (reg == CG)
                 registers[CG] = 0;
+            *val = read_word(addr);
             break;
         case 1:
             if (reg != CG) {
-                addr = read_word(inc_reg(PC));
-                addr += registers[reg];
+                addr = read_word(registers[PC]);
+                if (reg != SR)
+                    addr += registers[reg];
+                addr &= 0xffff;
+                *val = read_word(addr);
+                inc_reg(PC);
             } else {
                 registers[CG] = 1;
                 addr = 0x10000 + (reg << 1);
+                *val = registers[reg];
             }
             break;
         case 2:
             if (reg == CG)
                 registers[CG] = 2;
-            else if (reg == SR)
+            else if (reg == SR) {
                 registers[CG] = 4;
-            addr = 0x10000 + (CG << 1);
+                reg = CG;
+            }
+            addr = 0x10000 + (reg << 1);
+            *val = read_word(registers[reg]);
             break;
         case 3:
             if (reg != PC) {
@@ -53,15 +58,26 @@ static u32 get_addr(u16 addr_mode, u16 reg, u16 *write_back)
                 else if (reg == SR)
                     registers[CG] = 8;
                 addr = 0x10000 + (registers[reg] << 1);
+                *val = read_word(registers[reg]);
                 inc_reg(reg);
             } else {
-                addr = inc_reg(PC);
+                addr = registers[PC];
+                *val = read_word(addr);
+                inc_reg(PC);
                 *write_back = 0;
             }
             break;
     }
 
     return addr;
+}
+
+static inline void set_sr_flags(u16 dval, int byte)
+{
+    int n = !!read_bits(dval, 1 << (((!byte + 1) * 8) - 1));
+    int z = !dval;
+
+    registers[SR] = (registers[SR] & ~(SR_N|SR_Z)) | ((n << _SR_N)|(z << _SR_Z));
 }
 
 void mov(u16 instr)
@@ -71,26 +87,23 @@ void mov(u16 instr)
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
-    u16 wb, sval;
-    u32 saddr, daddr;
+    u16 wb, sval, tmp;
+    u32 daddr;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &tmp);
 
     //printf("saddr: 0x%x, daddr: 0x%x\n", saddr, daddr);
 
     if (!wb)
         return;
 
-    if (!bw) {
-        sval = read_word(saddr);
+    if (!bw)
         write_word(daddr, sval);
-    } else {
-        sval = read_byte(saddr);
-        write_byte(daddr, sval);
-    }
+    else
+        write_byte(daddr, sval & 0xff);
 }
 
 void add(u16 instr)
@@ -105,8 +118,8 @@ void add(u16 instr)
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     sval = read_word(saddr);
     //printf("saddr: 0x%x (%x), daddr: 0x%x\n", saddr, sval, daddr);
@@ -120,15 +133,6 @@ void add(u16 instr)
         dval += sval;
         write_word(daddr, dval);
 
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
         if (tmp + sval > 0xffff)
             set_bits(registers[SR], SR_V|SR_C);
         else
@@ -139,20 +143,13 @@ void add(u16 instr)
         dval += sval;
         write_byte(daddr, (u8)dval);
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
         if (dval > 0xff)
             set_bits(registers[SR], SR_V|SR_C);
         else
             clr_bits(registers[SR], SR_V|SR_C);
     }
+
+    set_sr_flags(dval, bw);
 }
 
 void addc(u16 instr)
@@ -167,8 +164,8 @@ void addc(u16 instr)
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
@@ -178,15 +175,6 @@ void addc(u16 instr)
         tmp = dval = read_word(daddr);
         dval += sval + read_bits(registers[SR], SR_C);
         write_word(daddr, dval);
-
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
 
         if (tmp + sval > 0xffff)
             set_bits(registers[SR], SR_V|SR_C);
@@ -198,20 +186,13 @@ void addc(u16 instr)
         dval += sval + read_bits(registers[SR], SR_C);
         write_byte(daddr, (u8)dval);
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
         if (dval > 0xff)
             set_bits(registers[SR], SR_V|SR_C);
         else
             clr_bits(registers[SR], SR_V|SR_C);
     }
+
+    set_sr_flags(dval, bw);
 }
 
 void subc(u16 instr)
@@ -220,57 +201,55 @@ void subc(u16 instr)
     printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
-    u16 ad, bw, as, dreg;
-    u16 wb, sval, dval;
-    u32 tmp, saddr, daddr;
+    u16 ad, bw, as, dreg, wb;
+    s16 sval, dval, tmp;
+    u32 saddr, daddr, c;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, (u16 *)&sval);
+    daddr = get_addr(ad, dreg, &wb, (u16 *)&dval);
 
     if (!wb)
         return;
 
+    c = read_bits(registers[SR], SR_C);
     if (!bw) {
         sval = read_word(saddr);
         tmp = dval = read_word(daddr);
-        dval -= sval - read_bits(registers[SR], SR_C);
+        dval -= sval - c;
         write_word(daddr, dval);
 
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
+        if (tmp - sval < 0)
+            set_bits(registers[SR], SR_C);
         else
-            clr_bits(registers[SR], SR_V|SR_C);
+            clr_bits(registers[SR], SR_C);
+
+        if (sval >= 0 && tmp < 0 && tmp - sval - c >= 0)
+            set_bits(registers[SR], SR_V);
+        else
+            clr_bits(registers[SR], SR_V);
     } else {
         sval = read_byte(saddr);
-        dval = read_byte(daddr);
-        dval -= sval - read_bits(registers[SR], SR_C);
+        tmp = dval = read_byte(daddr);
+        dval -= sval - c;
         write_byte(daddr, (u8)dval);
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
+        s8 *s = (s8 *)&sval;
+        s8 *t = (s8 *)&tmp;
 
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
+        if (tmp - sval < 0)
+            set_bits(registers[SR], SR_C);
         else
-            clr_bits(registers[SR], SR_V|SR_C);
+            clr_bits(registers[SR], SR_C);
+
+        if (*s >= 0 && *t < 0 && *t - *s - c >= 0)
+            set_bits(registers[SR], SR_V);
+        else
+            clr_bits(registers[SR], SR_V);
     }
+
+    set_sr_flags(dval, bw);
 }
 
 void sub(u16 instr)
@@ -285,8 +264,8 @@ void sub(u16 instr)
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     sval = read_word(saddr);
 
@@ -299,39 +278,36 @@ void sub(u16 instr)
         dval -= sval;
         write_word(daddr, dval);
 
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
+        if (tmp - sval < 0)
+            set_bits(registers[SR], SR_C);
         else
-            clr_bits(registers[SR], SR_V|SR_C);
+            clr_bits(registers[SR], SR_C);
+
+        if (sval >= 0 && tmp < 0 && tmp - sval >= 0)
+            set_bits(registers[SR], SR_V);
+        else
+            clr_bits(registers[SR], SR_V);
     } else {
         sval = read_byte(saddr);
         dval = read_byte(daddr);
         dval -= sval;
         write_byte(daddr, (u8)dval);
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
+        s8 *s = (s8 *)&sval;
+        s8 *t = (s8 *)&tmp;
 
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
+        if (tmp - sval < 0)
+            set_bits(registers[SR], SR_C);
         else
-            clr_bits(registers[SR], SR_V|SR_C);
+            clr_bits(registers[SR], SR_C);
+
+        if (*s >= 0 && *t < 0 && *t - *s >= 0)
+            set_bits(registers[SR], SR_V);
+        else
+            clr_bits(registers[SR], SR_V);
+
     }
+    set_sr_flags(dval, bw);
 }
 
 void cmp(u16 instr)
@@ -346,8 +322,8 @@ void cmp(u16 instr)
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
@@ -357,38 +333,34 @@ void cmp(u16 instr)
         tmp = dval = read_word(daddr);
         dval -= sval;
 
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
+        if (tmp - sval < 0)
+            set_bits(registers[SR], SR_C);
         else
-            clr_bits(registers[SR], SR_V|SR_C);
+            clr_bits(registers[SR], SR_C);
+
+        if (sval >= 0 && tmp < 0 && tmp - sval >= 0)
+            set_bits(registers[SR], SR_V);
+        else
+            clr_bits(registers[SR], SR_V);
     } else {
         sval = read_byte(saddr);
-        dval = read_byte(daddr);
+        tmp = dval = read_byte(daddr);
         dval -= sval;
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
+        s8 *s = (s8 *)&sval;
+        s8 *t = (s8 *)&tmp;
 
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
+        if (tmp - sval < 0)
+            set_bits(registers[SR], SR_C);
         else
-            clr_bits(registers[SR], SR_V|SR_C);
+            clr_bits(registers[SR], SR_C);
+
+        if (*s >= 0 && *t < 0 && *t - *s >= 0)
+            set_bits(registers[SR], SR_V);
+        else
+            clr_bits(registers[SR], SR_V);
     }
+    set_sr_flags(dval, bw);
 }
 
 /* XXX IMPLEMENT THIS CORRECTLY */
@@ -404,8 +376,8 @@ void dadd(u16 instr)
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
@@ -457,57 +429,30 @@ void bit(u16 instr)
     printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
-    u16 ad, bw, as, dreg;
-    u16 wb, sval, dval;
-    u32 tmp, saddr, daddr;
+    u16 ad, bw, as, dreg, wb;
+    u16 sval, dval;
+    u32 saddr, daddr;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
-
-    //printf("saddr: 0x%x, daddr: 0x%x\n", saddr, daddr);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
 
     if (!bw) {
         sval = read_word(saddr);
-        tmp = dval = read_word(daddr);
+        dval = read_word(daddr);
         dval &= sval;
-
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_C);
-        else
-            clr_bits(registers[SR], SR_C);
     } else {
         sval = read_byte(saddr);
         dval = read_byte(daddr);
         dval &= sval;
-
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_C);
-        else
-            clr_bits(registers[SR], SR_C);
     }
+
+    set_bits(registers[SR], (!!dval) << _SR_C);
+    set_sr_flags(dval, bw);
     clr_bits(registers[SR], SR_V);
 }
 
@@ -519,54 +464,26 @@ void bic(u16 instr)
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
     u16 wb, sval, dval;
-    u32 tmp, saddr, daddr;
+    u32 saddr, daddr;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
 
     if (!bw) {
         sval = read_word(saddr);
-        tmp = dval = read_word(daddr);
+        dval = read_word(daddr);
         dval &= ~sval;
         write_word(daddr, dval);
-
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     } else {
         sval = read_byte(saddr);
         dval = read_byte(daddr);
         dval &= (~sval & 0xff);
         write_byte(daddr, (u8)dval);
-
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     }
 }
 
@@ -578,12 +495,12 @@ void bis(u16 instr)
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
     u16 wb, sval, dval;
-    u32 tmp, saddr, daddr;
+    u32 saddr, daddr;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     sval = read_word(saddr);
     //printf("saddr: 0x%x (%x), daddr: 0x%x\n", saddr, sval, daddr);
@@ -593,42 +510,14 @@ void bis(u16 instr)
 
     if (!bw) {
         sval = read_word(saddr);
-        tmp = dval = read_word(daddr);
+        dval = read_word(daddr);
         dval |= sval;
         write_word(daddr, dval);
-
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     } else {
         sval = read_byte(saddr);
         dval = read_byte(daddr);
         dval |= sval;
         write_byte(daddr, (u8)dval);
-
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     }
 }
 
@@ -640,55 +529,35 @@ void xor(u16 instr)
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
     u16 wb, sval, dval;
-    u32 tmp, saddr, daddr;
+    u32 saddr, daddr;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
 
     if (!bw) {
         sval = read_word(saddr);
-        tmp = dval = read_word(daddr);
+        dval = read_word(daddr);
         dval ^= sval;
         write_word(daddr, dval);
-
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     } else {
         sval = read_byte(saddr);
         dval = read_byte(daddr);
         dval ^= sval;
         write_byte(daddr, (u8)dval);
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
+        if (dval) {
+            set_bits(registers[SR], SR_C);
+            if (read_bits(sval, 0x80) && read_bits(dval, 0x80))
+                set_bits(registers[SR], SR_V);
+        } else
+            clr_bits(registers[SR], SR_C);
     }
+    set_sr_flags(dval, bw);
 }
 
 void and(u16 instr)
@@ -699,55 +568,35 @@ void and(u16 instr)
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
     u16 wb, sval, dval;
-    u32 tmp, saddr, daddr;
+    u32 saddr, daddr;
 
     opc_components(instr, &opcode, &sreg, &ad, &bw, &as, &dreg);
 
-    saddr = get_addr(as, sreg, &wb);
-    daddr = get_addr(ad, dreg, &wb);
+    saddr = get_addr(as, sreg, &wb, &sval);
+    daddr = get_addr(ad, dreg, &wb, &dval);
 
     if (!wb)
         return;
 
     if (!bw) {
         sval = read_word(saddr);
-        tmp = dval = read_word(daddr);
+        dval = read_word(daddr);
         dval &= sval;
         write_word(daddr, dval);
 
-        if (dval & 0x8000) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
 
-        if (tmp + sval > 0xffff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     } else {
         sval = read_byte(saddr);
         dval = read_byte(daddr);
         dval &= sval;
         write_byte(daddr, (u8)dval);
 
-        if (dval & 0x80) {
-            set_bits(registers[SR], SR_N);
-            clr_bits(registers[SR], SR_Z);
-        } else {
-            clr_bits(registers[SR], SR_N);
-            if (!dval)
-                set_bits(registers[SR], SR_Z);
-        }
-
-        if (dval > 0xff)
-            set_bits(registers[SR], SR_V|SR_C);
-        else
-            clr_bits(registers[SR], SR_V|SR_C);
     }
+    set_sr_flags(dval, bw);
+    clr_bits(registers[SR], SR_V);
+
+    /* set C if result is NOT zero, reset otherwise */
+    set_bits(registers[SR], (!!dval) << _SR_C);
 }
 
 static void (*call_table[])(u16) = {

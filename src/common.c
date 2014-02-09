@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <msp430/common.h>
 
@@ -29,4 +30,31 @@ void print_registers(void)
 
     printf("r12: %04x r13: %04x ", registers[12], registers[13]);
     printf("r14: %04x r15: %04x\n", registers[14], registers[15]);
+}
+
+void dump_memory(u16 addr, u16 size)
+{
+    int i, j;
+    u8 *ptr, *tmpptr;
+
+    tmpptr = memory + addr;
+    for (i = 0; i < size; i += 16, tmpptr += 16) {
+        printf("%04lx:  ", tmpptr - memory);
+
+        ptr = tmpptr;
+        for (j = 0; j < 16; ++j, ++ptr) {
+            printf("%02x ", *ptr);
+            if (j == 7)
+                putchar(' ');
+        }
+
+        printf("    ");
+        ptr = tmpptr;
+        for (j = 0; j < 16; ++j, ++ptr)
+            if (isprint(*ptr) && (!isspace(*ptr) || *ptr == ' '))
+                printf("%c", *ptr);
+            else
+                printf("%c", '.');
+        putchar('\n');
+    }
 }

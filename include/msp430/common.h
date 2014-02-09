@@ -25,15 +25,25 @@
 #define SR 2
 #define CG 3
 
-#define SR_C        (1 << 0)
-#define SR_Z        (1 << 1)
-#define SR_N        (1 << 2)
-#define SR_GIE      (1 << 3)
-#define SR_CPU_OFF  (1 << 4)
-#define SR_OSC_OFF  (1 << 5)
-#define SR_SCG0     (1 << 6)
-#define SR_SCG1     (1 << 7)
-#define SR_V        (1 << 8)
+#define _SR_C        0
+#define _SR_Z        1
+#define _SR_N        2
+#define _SR_GIE      3
+#define _SR_CPU_OFF  4
+#define _SR_OSC_OFF  5
+#define _SR_SCG0     6
+#define _SR_SCG1     7
+#define _SR_V        8
+
+#define SR_C        (1 << _SR_C)
+#define SR_Z        (1 << _SR_Z)
+#define SR_N        (1 << _SR_N)
+#define SR_GIE      (1 << _SR_GIE)
+#define SR_CPU_OFF  (1 << _SR_CPU_OFF)
+#define SR_OSC_OFF  (1 << _SR_OSC_OFF)
+#define SR_SCG0     (1 << _SR_SCG0)
+#define SR_SCG1     (1 << _SR_SCG1)
+#define SR_V        (1 << _SR_V)
 
 #define AS_REG      0x0
 #define AS_IDX      0x1
@@ -65,6 +75,7 @@ extern u16 *registers;
 
 extern double curr_time(void);
 extern void print_registers(void);
+extern void dump_memory(u16 addr, u16 size);
 
 /* increases register by a word (2 bytes) */
 static inline u32 inc_reg(int reg)

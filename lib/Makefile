@@ -5,7 +5,7 @@ LDFLAGS =
 all: elf_loader
 
 %.o: %.c
-	$(CC) $(CFLAGS) $< -c -o $@
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -c -o $@
 
 elf_loader: elf_loader.o
 	
