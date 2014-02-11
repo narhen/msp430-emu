@@ -1,69 +1,66 @@
-#ifdef DEBUG
-#include <stdio.h>
-#endif
-
 #include <msp430/common.h>
+#include <debug_shell.h>
 
 static int jne_nz(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return !read_bits(registers[SR], SR_Z);
 }
 
 static int jeq_z(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return read_bits(registers[SR], SR_Z);
 }
 
 static int jnc(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return !read_bits(registers[SR], SR_C);
 }
 
 static int jc(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return read_bits(registers[SR], SR_C);
 }
 
 static int _jn(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return !read_bits(registers[SR], SR_N);
 }
 
 static int jge(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return !(read_bits(registers[SR], SR_N) ^ (read_bits(registers[SR], SR_V) >> 6));
 }
 
 static int jl(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return read_bits(registers[SR], SR_N) ^ (read_bits(registers[SR], SR_V) >> 6);
 }
 
 static int jmp(void)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     return 1;
 }

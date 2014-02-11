@@ -74,6 +74,7 @@ extern u8 memory[0x10000 + 32];
 extern u16 *registers;
 
 extern double curr_time(void);
+extern char *get_registers(void);
 extern void print_registers(void);
 extern void dump_memory(u16 addr, u16 size);
 

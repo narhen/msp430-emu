@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include <msp430/common.h>
+#include <debug_shell.h>
 
 
 static inline void opc_components(u16 instruction, u16 *opcode, u16 *sreg,
@@ -82,8 +83,8 @@ static inline void set_sr_flags(u16 dval, int byte)
 
 void mov(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -95,7 +96,7 @@ void mov(u16 instr)
     get_addr(as, sreg, &wb, &sval);
     daddr = get_addr(ad, dreg, &wb, &tmp);
 
-    //printf("saddr: 0x%x, daddr: 0x%x\n", saddr, daddr);
+    //cons_printf("saddr: 0x%x, daddr: 0x%x\n", saddr, daddr);
 
     if (!wb)
         return;
@@ -108,8 +109,8 @@ void mov(u16 instr)
 
 void add(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -122,7 +123,7 @@ void add(u16 instr)
     daddr = get_addr(ad, dreg, &wb, &dval);
 
     sval = read_word(saddr);
-    //printf("saddr: 0x%x (%x), daddr: 0x%x\n", saddr, sval, daddr);
+    //cons_printf("saddr: 0x%x (%x), daddr: 0x%x\n", saddr, sval, daddr);
 
     if (!wb)
         return;
@@ -154,8 +155,8 @@ void add(u16 instr)
 
 void addc(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -197,8 +198,8 @@ void addc(u16 instr)
 
 void subc(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg, wb;
@@ -254,8 +255,8 @@ void subc(u16 instr)
 
 void sub(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -312,8 +313,8 @@ void sub(u16 instr)
 
 void cmp(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -366,8 +367,8 @@ void cmp(u16 instr)
 /* XXX IMPLEMENT THIS CORRECTLY */
 void dadd(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -425,8 +426,8 @@ void dadd(u16 instr)
 
 void bit(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg, wb;
@@ -458,8 +459,8 @@ void bit(u16 instr)
 
 void bic(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -489,8 +490,8 @@ void bic(u16 instr)
 
 void bis(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -503,7 +504,7 @@ void bis(u16 instr)
     daddr = get_addr(ad, dreg, &wb, &dval);
 
     sval = read_word(saddr);
-    //printf("saddr: 0x%x (%x), daddr: 0x%x\n", saddr, sval, daddr);
+    //cons_printf("saddr: 0x%x (%x), daddr: 0x%x\n", saddr, sval, daddr);
 
     if (!wb)
         return;
@@ -523,8 +524,8 @@ void bis(u16 instr)
 
 void xor(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;
@@ -562,8 +563,8 @@ void xor(u16 instr)
 
 void and(u16 instr)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u16 opcode, sreg;
     u16 ad, bw, as, dreg;

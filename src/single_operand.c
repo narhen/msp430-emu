@@ -1,10 +1,11 @@
 #include <stdio.h>
 
 #include <msp430/common.h>
+#include <debug_shell.h>
 
 static void illegal_instr(u16 instruction)
 {
-    printf("ILLEGAL INSTRUCTION!\n");
+    cons_printf("ILLEGAL INSTRUCTION!\n");
     set_bits(registers[SR], SR_CPU_OFF);
 }
 
@@ -49,8 +50,8 @@ static u32 get_addr(u8 instr, u16 *write_back)
 
 static void rrc(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 val, wb;
@@ -80,8 +81,8 @@ static void rrc(u16 instruction)
 
 static void rrc_b(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u8 tmpc, val;
@@ -111,8 +112,8 @@ static void rrc_b(u16 instruction)
 
 static void swpb(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 val, wb;
@@ -128,8 +129,8 @@ static void swpb(u16 instruction)
 
 static void rra(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 msb, val, wb;
@@ -155,8 +156,8 @@ static void rra(u16 instruction)
 
 static void rra_b(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 wb;
@@ -183,8 +184,8 @@ static void rra_b(u16 instruction)
 
 static void sxt(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 wb;
@@ -216,8 +217,8 @@ static void sxt(u16 instruction)
 
 static void push(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 val, wb;
@@ -230,8 +231,8 @@ static void push(u16 instruction)
 
 static void push_b(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 val, wb;
@@ -244,8 +245,8 @@ static void push_b(u16 instruction)
 
 static void call(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
     u32 addr;
     u16 val, wb;
@@ -259,10 +260,9 @@ static void call(u16 instruction)
 
 static void reti(u16 instruction)
 {
-#ifdef DEBUG
-    printf("%s\n", __FUNCTION__);
+#ifdef DEBUG2
+    cons_printf("%s\n", __FUNCTION__);
 #endif
-    printf("%s\n", __FUNCTION__);
     registers[SR] = read_word(registers[SP]);
     inc_reg(registers[SP]);
     registers[PC] = read_word(registers[SP]);

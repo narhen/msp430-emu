@@ -3,6 +3,9 @@
 
 #include <msp430/common.h>
 
-extern int load_elf(char *file, u16 *main_addr);
+extern u16 find_sym(char *sym_name);
+extern int load_elf(FILE *file);
+extern int elf_is_loaded(void);
+extern void clean_elf_stuff(void);
 
 #endif
