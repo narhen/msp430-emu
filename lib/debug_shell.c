@@ -247,8 +247,17 @@ static int parse_command(char *str)
     for (i = 1; i < 10 && token; ++i)
         token = args[i] = strtok_r(NULL, tmp, &saveptr1);
 
-    if (args[0] == NULL)
-        return 0;
+    if (args[0] == NULL) {
+        i = step(&info);
+        if (i == -1) {
+            print_win(&win_cons_out, "\n\nIllegal instruction!\n");
+            return 0;
+        } else if (!i) {
+            print_win(&win_cons_out, "\n\nCPUOFF flag set.\n");
+            return 0;
+        }
+        return i;
+    }
 
     if (!strcmp(args[0], "c") || !strcmp(args[0], "continue")) {
         info.num_steps = 1;

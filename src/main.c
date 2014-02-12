@@ -66,9 +66,10 @@ static void handle_interrupt(void)
              * Takes one argument: the password to test */
             break;
         case 0x7f:
-            /* Interface with the deadbold to trigger an unlock if the password
+            /* Interface with the deadbolt to trigger an unlock if the password
              * is correct.
              * Takes no arguments */
+            cons_printf("Door unlocked!\n");
             break;
     }
 }
